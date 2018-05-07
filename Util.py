@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 import datetime as dt
+from sklearn.utils import resample
 
 class transformation:
 
@@ -18,7 +19,50 @@ class transformation:
         values = (values * self.tr_var ) + self.tr_mean
         return values
 
+def report ( data, text = '' ):
+    print ( '{0} {1} ---- {2} {3}'.format('<'*10 , text, type(data), '>'*10))
+    if isinstance(data, dict):
+        report ( data[data.keys()[0]], data.keys()[0])
+    else:
 
+        data.reset_index(drop=True, inplace=True)
+        print ( 'shape: ', data.shape)
+        print ( 'columns: ', data.columns)
+        print ( data.ix[:min(10,data.shape[0]),:])
+    print ( '='*10 )
+
+
+def to_nominal(data, col_name, values=[], nominal_col_name=None):
+    if len(values) == 0:
+        values = data[col_name].unique().tolist()
+    if nominal_col_name is None:
+        nominal_col_name = col_name+'_n'
+    data = data[data[col_name].isin(values)]
+    data[nominal_col_name] = data[col_name].astype("category", ordered=True, categories=values).cat.codes
+    data.reset_index(drop=True, inplace=True)
+    return data
+
+def upsample(data, label_col):
+    # Separate majority and minority classes
+    df_majority = data[data[label_col]==0]
+    df_minority = data[data[label_col]==1]
+
+    n_samples = df_majority.shape[0]
+    print ('n_samples: ', n_samples)
+
+    # Upsample minority class
+    df_minority_upsampled = resample(df_minority,
+                                     replace=True,     # sample with replacement
+                                     n_samples=n_samples,    # to match majority class
+                                     random_state=123) # reproducible results
+
+    print ('df_minority_upsampled: ', df_minority_upsampled.shape, ' , ' , df_majority.shape)
+    # Combine majority class with upsampled minority class
+    df_upsampled = pd.concat([df_majority, df_minority_upsampled])
+    print ('df_upsampled: ', df_upsampled.shape)
+    # Display new class counts
+    print ('value_counts: ', df_upsampled[label_col].value_counts() )
+    return df_upsampled
 
 def stack( arr, arr_all=None, axis=0):
     #### axis=0 : x*n , k*n ==> (k+x)*n
@@ -226,3 +270,4 @@ def prepare_final_submission(submission_df, Ypred, type=0, output_filename='data
     # final_submission_name = 'data/final_submission_outlierDetection.csv'
 
     submission_df.to_csv(output_filename)
+
