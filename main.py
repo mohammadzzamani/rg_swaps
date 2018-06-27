@@ -19,17 +19,20 @@ import pickle
 
 def get_ratio(data, year, month, date_col, label_col = 'test_status'):
 
-    eval_min_date = datetime.date(year, month, 1)
-    eval_max_date = datetime.date(year, month+1, 1)
+    eval_min_date = datetime.date(year, month-2, 1)
+    eval_max_date = datetime.date(year, month, 1)
 
     eval = data[data[date_col] >= eval_min_date]
     eval = eval[eval[date_col] < eval_max_date]
+
+    eval = data[data[date_col] < eval_max_date]
 
     zeros = eval[eval[label_col] == 0].shape[0]
     ones = eval[eval[label_col] == 1].shape[0]
     print ('zeros: ', zeros)
     print ('ones: ', ones)
     ratio = zeros*1.0/(zeros + ones)
+    ratio = 0.91
     print ('eval ratio: ', ratio)
 
     return ratio
@@ -78,7 +81,7 @@ def sampling(data, col_name, sample_rate=1.0):
 
 def split_x_y(data, label_col = 'test_status', rgmodels_list= []):
 
-    xcols = rgmodels_list + [ 'duration' , 'age_of_device' , 'use_factor' , 'rg_days_on_ban'  , 'calendar_day' , 'time_of_day']
+    xcols = rgmodels_list + [ 'duration' , 'age_of_device' , 'use_factor' , 'rg_days_on_ban'  , 'calendar_day' , 'time_of_day'] #, 'tech_ntf_swap_ratio', 'manager_ntf_swap_ratio']
     # xcols = [ 'duration' , 'age_of_device' , 'use_factor' , 'rg_days_on_ban'  , 'calendar_day' , 'time_of_day']
     # xcols = ['first_rgmodel_5031NV-030', 'first_rgmodel_5268AC', 'first_rgmodel_NVG589', 'first_rgmodel_NVG599', 'time_spent_min', 'time_spent_hour', 'down' , 'todn' , 'rank_of_ban_current_is_biggest', 'rg_days_on_ban']
     # xcols = ['time_spent_min', 'time_spent_hour', 'down' , 'todn' , 'age_of_device', 'rank_of_ban_current_is_biggest', 'rg_days_on_ban']
@@ -285,6 +288,14 @@ def prepare_data(data, separated_models = False, date_col='dt', label_col='test_
     # data['time_spent_hour'] = data.time_spent_hour.astype(int)
 
 
+    # data = data.replace('null', np.nan)
+    # data.tech_ntf_swap_ratio = data.tech_ntf_swap_ratio.astype(float)
+    # data.manager_ntf_swap_ratio = data.manager_ntf_swap_ratio.astype(float)
+    # data['tech_ntf_swap_ratio'] = data.tech_ntf_swap_ratio.combine_first(data.manager_ntf_swap_ratio)
+    # data['tech_ntf_swap_ratio'].fillna((data['tech_ntf_swap_ratio'].mean()), inplace=True)
+    # data['manager_ntf_swap_ratio'].fillna((data['manager_ntf_swap_ratio'].mean()), inplace=True)
+
+    # print ( data[data['tech_ntf_swap_ratio'].isnull()].ix[:100,:])
     #### filter rg_models
     # model_values = ['NVG599', 'NVG589', '5268AC', '5031NV-030']
     # data = data[data[model_col_name].isin(model_values)]
@@ -432,7 +443,9 @@ def prepare_output(data, label, prediction, prediction_proba, ratio, label_col='
 
 
 #### read whole data
+# sdf = pd.read_table('/Users/Mz/Downloads/att_files/create_table/tf_label_201804_0614.csv', sep='\t')
 sdf = pd.read_table('/Users/Mz/Downloads/att_files/create_table/tf_label_201804_0525-17.csv', sep='\t')
+
 
 date_col, label_col, model_col ='swap_date' , 'test_status', 'model'
 
@@ -460,8 +473,9 @@ for key, sdf in sdf_dict.iteritems():
 
 
     #### get ratio from the last month of train
-    ratio_train = get_ratio(sdf,year=test_date['year'], month=test_date['month']-1, date_col=date_col,label_col='test_status')
-    ratio_all = get_ratio(sdf,year=test_date['year'], month=test_date['month'], date_col=date_col,label_col='test_status')
+    ratio_train = get_ratio(sdf,year=test_date['year'], month=test_date['month'], date_col=date_col,label_col='test_status')
+    # ratio_all = get_ratio(sdf,year=test_date['year'], month=test_date['month'], date_col=date_col,label_col='test_status')
+    # ratio_train = ratio_all
 
 
     print 'shapes:'
@@ -479,7 +493,9 @@ for key, sdf in sdf_dict.iteritems():
     ypred , ypred_proba = simple_learning_model(xtrain.values, ytrain.values, xtest.values, ytest.values, ratio=ratio_train, rg_model=key, day=test_date['day'], month=test_date['month'], report=True, method=method)
     resultdf = print_detailed_outcomes(test, ypred, label_col=label_col)
 
-    simple_learning_model(xall.values, yall.values, ratio=ratio_all, rg_model= key, day=test_date['day'], month=test_date['month'], report=True, method=method, pickle_filename=pickle_filename)
+    ypred , ypred_proba = simple_learning_model(xtrain.values, ytrain.values, xtrain.values, ytrain.values, ratio=ratio_train, rg_model=key, day=test_date['day'], month=test_date['month'], report=False, method=method)
+    resultdf = print_detailed_outcomes(train, ypred, label_col=label_col)
+    # simple_learning_model(xall.values, yall.values, ratio=ratio_all, rg_model= key, day=test_date['day'], month=test_date['month'], report=True, method=method, pickle_filename=pickle_filename)
 
     # resultdf = print_detailed_outcomes(test, ypred, label_col=label_col)
     # test_proba = ypred_proba[:,0]
