@@ -25,14 +25,14 @@ def get_ratio(data, year, month, date_col, label_col = 'test_status'):
     eval = data[data[date_col] >= eval_min_date]
     eval = eval[eval[date_col] < eval_max_date]
 
-    eval = data[data[date_col] < eval_max_date]
+    # eval = data[data[date_col] < eval_max_date]
 
     zeros = eval[eval[label_col] == 0].shape[0]
     ones = eval[eval[label_col] == 1].shape[0]
     print ('zeros: ', zeros)
     print ('ones: ', ones)
     ratio = zeros*1.0/(zeros + ones)
-    ratio = 0.91
+    ratio = (ratio + 0.64)/2
     print ('eval ratio: ', ratio)
 
     return ratio
