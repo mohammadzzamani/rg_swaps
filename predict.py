@@ -6,15 +6,12 @@ import pickle
 
 def prepare_data(data, separated_models=False, date_col='dt', model_col='model', dummy_encoding=False):
 
-
     data[date_col] =  pd.to_datetime(data[date_col], format='%Y-%m-%d %H:%M:%S.%f').dt.date
 
     #### convert time_of_day to nominal values
     data = U.to_nominal(data,col_name='time_of_day', nominal_col_name='time_of_day')
 
-    #### filter rg_models
-    model_values = ['NVG599', 'NVG589', '5268AC', '5031NV-030']
-    data = data[data[model_col].isin(model_values)]
+
 
     U.report(data, 'nominalized labels')
 
@@ -85,6 +82,9 @@ data = pd.read_table('/Users/Mz/Downloads/att_files/create_table/tf_dispatch_201
 date_col, model_col ='swap_date' ,  'model'
 
 
+#### filter rg_models
+model_values = ['NVG599', 'NVG589', '5268AC', '5031NV-030']
+data = data[data[model_col].isin(model_values)]
 sdf_dict, rgmodels_list = prepare_data(data,  date_col=date_col, model_col=model_col)
 
 for key, sdf in sdf_dict.iteritems():
@@ -100,10 +100,14 @@ for key, sdf in sdf_dict.iteritems():
     #### add prediction and probability to the input data
     prediction_col = 'prediction'
     prediction_proba_col = 'passing_test_probability'
-    sdf[prediction_proba_col] = ypred_proba[:,0].round(decimals=2)
-    sdf[prediction_col] = ypred
+
+    print data.shape
+    print ypred_proba.shape
+    data[prediction_proba_col] = ypred_proba[:,0].round(decimals=2)
+    data[prediction_col] = ypred
+    data[prediction_col] = data[prediction_col].map({0: 'PASS', 1:'FAIL'})
 
     #### save output file, containing inputs and predictions as csv
     output_filename='outputs/predictions_'+key+'_20180401.csv'
-    sdf.to_csv(output_filename, index=False)
+    data.to_csv(output_filename, index=False)
 
